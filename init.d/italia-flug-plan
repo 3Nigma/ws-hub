@@ -1,0 +1,63 @@
+#!/bin/sh
+
+### BEGIN INIT INFO
+# Provides: ws-hub
+# Required-Start:    $local_fs $syslog $remote_fs dbus
+# Required-Stop:     $local_fs $syslog $remote_fs
+# Default-Start:     2 3 4 5
+# Default-Stop:      0 1 6
+# Short-Description: Start the nodejs ws-hub service
+### END INIT INFO
+
+USER="nodejs"
+
+DAEMON="/usr/bin/nodejs"
+ROOT_DIR="/home/nodejs/ws-hub"
+
+SERVER="$ROOT_DIR/app.js"
+EXPRESS_PORT="1992"
+WS_PORT="1993"
+LOG_FILE="$ROOT_DIR/app.js.log"
+
+LOCK_FILE="/var/lock/subsys/ws-hub"
+
+do_start()
+{
+        if [ ! -f "$LOCK_FILE" ] ; then
+                echo -n $"Starting $SERVER: "
+                runuser -l "$USER" -c "$DAEMON $SERVER --express-port=$EXPRESS_PORT --wsocket-port=$WS_PORT >> $LOG_FILE &" && echo "Success" || echo "Failed"
+                RETVAL=$?
+                echo
+                [ $RETVAL -eq 0 ] && touch $LOCK_FILE
+        else
+                echo "$SERVER is locked."
+                RETVAL=1
+        fi
+}
+do_stop()
+{
+        echo -n $"Stopping $SERVER: "
+        pid=`ps -aefw | grep "$DAEMON $SERVER" | grep -v " grep " | awk '{print $2}'`
+        kill -9 $pid > /dev/null 2>&1 && echo "Success" || echo "Failed"
+        RETVAL=$?
+        echo
+        [ $RETVAL -eq 0 ] && rm -f $LOCK_FILE
+}
+
+case "$1" in
+        start)
+                do_start
+                ;;
+        stop)
+                do_stop
+                ;;
+        restart)
+                do_stop
+                do_start
+                ;;
+        *)
+                echo "Usage: $0 {start|stop|restart}"
+                RETVAL=1
+esac
+
+exit $RETVAL
